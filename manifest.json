@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Microsoft Teams Transcription Downloader",
+  "description": "Extension that allows you to download the transcription of a Microsoft Teams meeting.",
+  "version": "1.0.0",
+  "action": {
+    "default_title": "Microsoft Teams Transcription Downloader",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ]
+}
