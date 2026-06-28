@@ -8,7 +8,7 @@ const DEFAULT_WEBHOOK_CONFIG = {
   },
 };
 
-const ALLOWED_HTTP_METHODS = ["GET", "POST", "PUT", "PATCH"];
+const ALLOWED_HTTP_METHODS = ["POST", "PUT", "PATCH"];
 
 function formatHeadersJson(headers) {
   return JSON.stringify(headers || {}, null, 2);
@@ -74,11 +74,8 @@ async function sendTranscriptToWebhook(config, payload) {
   const requestOptions = {
     method: normalized.method,
     headers: { ...normalized.headers },
+    body: JSON.stringify(payload),
   };
-
-  if (normalized.method !== "GET") {
-    requestOptions.body = JSON.stringify(payload);
-  }
 
   const response = await fetch(normalized.url, requestOptions);
   if (!response.ok) {
