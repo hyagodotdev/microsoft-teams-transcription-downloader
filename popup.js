@@ -3,6 +3,14 @@ const meetingTitleEl = document.getElementById("meeting-title");
 const pageNoticeEl = document.getElementById("page-notice");
 const pageNoticeTextEl = document.getElementById("page-notice-text");
 const popupReadyEl = document.getElementById("popup-ready");
+const settingsModalEl = document.getElementById("settings-modal");
+const settingsBackdropEl = document.getElementById("settings-backdrop");
+const settingsFormEl = document.getElementById("settings-form");
+const settingsStatusEl = document.getElementById("settings-status");
+const webhookUrlEl = document.getElementById("webhook-url");
+const webhookMethodEl = document.getElementById("webhook-method");
+const webhookHeadersEl = document.getElementById("webhook-headers");
+const btnSendApiEl = document.getElementById("btn-send-api");
 
 const TRANSCRIPT_PAGE_MESSAGE =
   "Open this extension on the Teams meeting recording page with the transcript panel visible to collect and download it.";
@@ -10,6 +18,106 @@ const TRANSCRIPT_PAGE_MESSAGE =
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
   statusEl.style.color = isError ? "#b91c1c" : "#0f766e";
+}
+
+function setSettingsStatus(message, isError = false) {
+  settingsStatusEl.textContent = message;
+  settingsStatusEl.classList.toggle("is-error", isError);
+}
+
+async function openSettingsModal() {
+  const config = await getWebhookConfig();
+  webhookUrlEl.value = config.url;
+  webhookMethodEl.value = config.method;
+  webhookHeadersEl.value = formatHeadersJson(config.headers);
+  setSettingsStatus("");
+  settingsModalEl.classList.add("is-open");
+  webhookUrlEl.focus();
+}
+
+function closeSettingsModal() {
+  settingsModalEl.classList.remove("is-open");
+  setSettingsStatus("");
+}
+
+function wireSettingsUi() {
+  document.getElementById("btn-settings").addEventListener("click", () => {
+    openSettingsModal();
+  });
+
+  document.getElementById("btn-settings-cancel").addEventListener("click", () => {
+    closeSettingsModal();
+  });
+
+  settingsBackdropEl.addEventListener("click", () => {
+    closeSettingsModal();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && settingsModalEl.classList.contains("is-open")) {
+      closeSettingsModal();
+    }
+  });
+
+  settingsFormEl.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    try {
+      const headers = parseHeadersJson(webhookHeadersEl.value);
+      const saved = await saveWebhookConfig({
+        url: webhookUrlEl.value,
+        method: webhookMethodEl.value,
+        headers,
+      });
+
+      webhookUrlEl.value = saved.url;
+      webhookMethodEl.value = saved.method;
+      webhookHeadersEl.value = formatHeadersJson(saved.headers);
+      setSettingsStatus("Settings saved.");
+      await updateApiButtonState();
+      window.setTimeout(() => {
+        closeSettingsModal();
+      }, 500);
+    } catch (error) {
+      setSettingsStatus(error.message || "Could not save settings.", true);
+    }
+  });
+}
+
+async function updateApiButtonState() {
+  const config = await getWebhookConfig();
+  const isConfigured = Boolean(config.url);
+
+  btnSendApiEl.disabled = !isConfigured;
+  btnSendApiEl.title = isConfigured
+    ? "Send transcript to configured API"
+    : "Configure API settings to enable";
+}
+
+async function collectTranscriptFromActiveTab() {
+  const tab = await getCurrentTab();
+  if (!tab?.id) {
+    throw new Error("Could not access the active tab.");
+  }
+
+  const metadataPromise = fetchMeetingMetadata(tab.id);
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: collectTranscriptOnPage,
+  });
+
+  const metadata = await metadataPromise;
+  updateMeetingInfo(metadata);
+
+  if (result?.error === "no_transcript") {
+    return { error: "no_transcript" };
+  }
+
+  if (!result?.entries || result.entries.length === 0) {
+    return { error: "no_entries" };
+  }
+
+  return { metadata, entries: result.entries };
 }
 
 async function getCurrentTab() {
@@ -182,6 +290,7 @@ async function initializePopup() {
 
     const metadata = await fetchMeetingMetadata(tab.id);
     updateMeetingInfo(metadata);
+    await updateApiButtonState();
   } catch {
     showInvalidPage(
       "Could not read this page. Open a Teams meeting recording with the transcript panel visible."
@@ -534,51 +643,82 @@ async function collectTranscriptOnPage() {
 }
 
 async function runDownload(format) {
-  const tab = await getCurrentTab();
+  setStatus("Collecting transcript...");
 
-  if (!tab?.id) {
-    setStatus("Could not access the active tab.", true);
+  try {
+    const collected = await collectTranscriptFromActiveTab();
+
+    if (collected.error === "no_transcript") {
+      setStatus("No transcript found. Open the recording transcript and try again.", true);
+      return;
+    }
+
+    if (collected.error === "no_entries") {
+      setStatus("No speech entries found on this page.", true);
+      return;
+    }
+
+    const { metadata, entries } = collected;
+    const lineCount = entries.length;
+    const extension = format === "md" ? "md" : "txt";
+    const content =
+      format === "md" ? buildMarkdownContent(metadata, entries) : buildTranscriptContent(metadata, entries);
+    const filename = buildFilename(metadata, extension);
+    const mimeType = format === "md" ? "text/markdown;charset=utf-8" : "text/plain;charset=utf-8";
+
+    downloadFile(content, filename, mimeType);
+
+    const label = format === "md" ? "entries" : "lines";
+    setStatus(`Transcript downloaded (${lineCount} ${label}).`);
+  } catch (error) {
+    setStatus("Failed to collect or download the transcript.", true);
+  }
+}
+
+async function runSendToApi() {
+  if (btnSendApiEl.disabled) {
     return;
   }
 
   setStatus("Collecting transcript...");
 
   try {
-    const metadataPromise = fetchMeetingMetadata(tab.id);
-    const [{ result }] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: collectTranscriptOnPage,
-    });
+    const webhookConfig = await getWebhookConfig();
+    if (!webhookConfig.url) {
+      setStatus("Configure API settings before sending.", true);
+      await updateApiButtonState();
+      return;
+    }
 
-    const metadata = await metadataPromise;
-    updateMeetingInfo(metadata);
+    const collected = await collectTranscriptFromActiveTab();
 
-    if (result?.error === "no_transcript") {
+    if (collected.error === "no_transcript") {
       setStatus("No transcript found. Open the recording transcript and try again.", true);
       return;
     }
 
-    if (!result?.entries || result.entries.length === 0) {
+    if (collected.error === "no_entries") {
       setStatus("No speech entries found on this page.", true);
       return;
     }
 
-    const lineCount = result.entries.length;
+    const { metadata, entries } = collected;
+    const content = buildMarkdownContent(metadata, entries);
+    const filename = buildFilename(metadata, "md");
 
-    if (format === "md") {
-      const content = buildMarkdownContent(metadata, result.entries);
-      const filename = buildFilename(metadata, "md");
-      downloadFile(content, filename, "text/markdown;charset=utf-8");
-      setStatus(`Markdown downloaded (${lineCount} entries).`);
-      return;
-    }
+    setStatus("Sending to API...");
 
-    const content = buildTranscriptContent(metadata, result.entries);
-    const filename = buildFilename(metadata, "txt");
-    downloadFile(content, filename, "text/plain;charset=utf-8");
-    setStatus(`Transcript downloaded (${lineCount} lines).`);
+    await sendTranscriptToWebhook(webhookConfig, {
+      format: "md",
+      filename,
+      metadata,
+      entryCount: entries.length,
+      content,
+    });
+
+    setStatus(`Transcript sent to API (${entries.length} entries).`);
   } catch (error) {
-    setStatus("Failed to collect or download the transcript.", true);
+    setStatus(error.message || "Failed to send transcript to API.", true);
   }
 }
 
@@ -590,4 +730,10 @@ document.getElementById("btn-download-md").addEventListener("click", () => {
   runDownload("md");
 });
 
+document.getElementById("btn-send-api").addEventListener("click", () => {
+  runSendToApi();
+});
+
+wireSettingsUi();
+closeSettingsModal();
 initializePopup();

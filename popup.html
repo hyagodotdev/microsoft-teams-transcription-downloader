@@ -23,11 +23,69 @@
         <div class="buttons">
           <button id="btn-download-txt" class="menu-button">Download TXT</button>
           <button id="btn-download-md" class="menu-button menu-button--secondary">Download Markdown (AI)</button>
+          <button id="btn-send-api" class="menu-button menu-button--api" type="button" disabled>
+            Send for API
+          </button>
         </div>
-        <p id="status" class="status" aria-live="polite"></p>
       </div>
+
+      <button id="btn-settings" class="menu-button menu-button--ghost menu-button--configure" type="button">
+        Configure API
+      </button>
+      <p id="status" class="status" aria-live="polite"></p>
     </main>
 
+    <div id="settings-modal" class="settings-modal">
+      <div id="settings-backdrop" class="settings-modal__backdrop"></div>
+      <section
+        class="settings-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+      >
+        <h2 id="settings-title" class="settings-modal__title">API settings</h2>
+        <p class="settings-modal__hint">
+          Configure an API endpoint to enable Send for API. Leave the URL empty if you only want local
+          downloads.
+        </p>
+
+        <form id="settings-form" class="settings-form">
+          <label class="field">
+            <span class="field__label">URL</span>
+            <input id="webhook-url" class="field__input" type="url" placeholder="https://api.example.com/webhook" />
+          </label>
+
+          <label class="field">
+            <span class="field__label">HTTP method</span>
+            <select id="webhook-method" class="field__input">
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="PATCH">PATCH</option>
+              <option value="GET">GET</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Headers (JSON)</span>
+            <textarea
+              id="webhook-headers"
+              class="field__input field__input--textarea"
+              rows="5"
+              spellcheck="false"
+            ></textarea>
+          </label>
+
+          <div class="settings-form__actions">
+            <button id="btn-settings-cancel" class="menu-button menu-button--ghost" type="button">Cancel</button>
+            <button id="btn-settings-save" class="menu-button" type="submit">Save</button>
+          </div>
+        </form>
+
+        <p id="settings-status" class="settings-status" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <script src="settings.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
