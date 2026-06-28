@@ -8,18 +8,24 @@
   </head>
   <body>
     <main class="container">
-      <section class="meeting-info" aria-label="Meeting details">
-        <div class="meeting-info__row">
-          <span class="meeting-info__label">Meeting</span>
-          <p id="meeting-title" class="meeting-info__value">Loading...</p>
-        </div>
+      <section id="page-notice" class="page-notice" hidden aria-live="polite">
+        <p id="page-notice-text" class="page-notice__text"></p>
       </section>
 
-      <div class="buttons">
-        <button id="btn-download-txt" class="menu-button">Download TXT</button>
-        <button id="btn-download-md" class="menu-button menu-button--secondary">Download Markdown (AI)</button>
+      <div id="popup-ready" hidden>
+        <section class="meeting-info" aria-label="Meeting details">
+          <div class="meeting-info__row">
+            <span class="meeting-info__label">Meeting</span>
+            <p id="meeting-title" class="meeting-info__value">Loading...</p>
+          </div>
+        </section>
+
+        <div class="buttons">
+          <button id="btn-download-txt" class="menu-button">Download TXT</button>
+          <button id="btn-download-md" class="menu-button menu-button--secondary">Download Markdown (AI)</button>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
       </div>
-      <p id="status" class="status" aria-live="polite"></p>
     </main>
 
     <script src="popup.js"></script>

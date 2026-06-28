@@ -60,6 +60,20 @@ h1 {
   font-style: italic;
 }
 
+.page-notice {
+  padding: 12px;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+}
+
+.page-notice__text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #92400e;
+}
+
 .buttons {
   display: grid;
   gap: 10px;

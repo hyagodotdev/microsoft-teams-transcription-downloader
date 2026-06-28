@@ -1,5 +1,11 @@
 const statusEl = document.getElementById("status");
 const meetingTitleEl = document.getElementById("meeting-title");
+const pageNoticeEl = document.getElementById("page-notice");
+const pageNoticeTextEl = document.getElementById("page-notice-text");
+const popupReadyEl = document.getElementById("popup-ready");
+
+const TRANSCRIPT_PAGE_MESSAGE =
+  "Open this extension on the Teams meeting recording page with the transcript panel visible to collect and download it.";
 
 function setStatus(message, isError = false) {
   statusEl.textContent = message;
@@ -47,6 +53,29 @@ function updateMeetingInfo(metadata) {
 
   meetingTitleEl.textContent = title || "Not available";
   meetingTitleEl.classList.toggle("is-muted", !title);
+}
+
+function isTranscriptViewOnPage() {
+  return Boolean(document.querySelector('[id^="sub-entry-"], [id^="entry-"]'));
+}
+
+function showInvalidPage(message) {
+  pageNoticeTextEl.textContent = message;
+  pageNoticeEl.hidden = false;
+  popupReadyEl.hidden = true;
+}
+
+function showTranscriptPage() {
+  pageNoticeEl.hidden = true;
+  popupReadyEl.hidden = false;
+}
+
+async function checkTranscriptView(tabId) {
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: isTranscriptViewOnPage,
+  });
+  return Boolean(result);
 }
 
 function extractMeetingMetadataOnPage() {
@@ -129,22 +158,34 @@ async function fetchMeetingMetadata(tabId) {
   return result;
 }
 
-async function loadMeetingInfo() {
-  meetingTitleEl.textContent = "Loading...";
-  meetingTitleEl.classList.remove("is-muted");
+async function initializePopup() {
+  pageNoticeEl.hidden = true;
+  popupReadyEl.hidden = true;
+  setStatus("");
 
   try {
     const tab = await getCurrentTab();
     if (!tab?.id) {
-      updateMeetingInfo({});
+      showInvalidPage("Could not access the active tab.");
       return;
     }
+
+    const hasTranscriptView = await checkTranscriptView(tab.id);
+    if (!hasTranscriptView) {
+      showInvalidPage(TRANSCRIPT_PAGE_MESSAGE);
+      return;
+    }
+
+    showTranscriptPage();
+    meetingTitleEl.textContent = "Loading...";
+    meetingTitleEl.classList.remove("is-muted");
 
     const metadata = await fetchMeetingMetadata(tab.id);
     updateMeetingInfo(metadata);
   } catch {
-    meetingTitleEl.textContent = "Could not read page";
-    meetingTitleEl.classList.add("is-muted");
+    showInvalidPage(
+      "Could not read this page. Open a Teams meeting recording with the transcript panel visible."
+    );
   }
 }
 
@@ -549,4 +590,4 @@ document.getElementById("btn-download-md").addEventListener("click", () => {
   runDownload("md");
 });
 
-loadMeetingInfo();
+initializePopup();
