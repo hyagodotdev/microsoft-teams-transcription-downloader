@@ -1,5 +1,6 @@
 const statusEl = document.getElementById("status");
 const meetingTitleEl = document.getElementById("meeting-title");
+const meetingDateEl = document.getElementById("meeting-date");
 const pageNoticeEl = document.getElementById("page-notice");
 const pageNoticeTextEl = document.getElementById("page-notice-text");
 const popupReadyEl = document.getElementById("popup-ready");
@@ -287,14 +288,51 @@ function toIsoDate(value) {
     return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
   }
 
+  const ptMonths = {
+    janeiro: "01",
+    fevereiro: "02",
+    marco: "03",
+    março: "03",
+    abril: "04",
+    maio: "05",
+    junho: "06",
+    julho: "07",
+    agosto: "08",
+    setembro: "09",
+    outubro: "10",
+    novembro: "11",
+    dezembro: "12",
+  };
+  const ptDate = value.match(/(\d{1,2})\s+de\s+(\p{L}+)\s+de\s+(\d{4})/iu);
+  if (ptDate) {
+    const month = ptMonths[ptDate[2].toLowerCase()];
+    if (month) {
+      return `${ptDate[3]}-${month}-${ptDate[1].padStart(2, "0")}`;
+    }
+  }
+
   return sanitizeFilenamePart(value, 10).replace(/\s/g, "_");
+}
+
+function toApiDate(value) {
+  const iso = toIsoDate(value);
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : "";
 }
 
 function updateMeetingInfo(metadata) {
   const title = metadata?.title?.trim();
+  const displayDate = formatDisplayDate(metadata?.date);
 
   meetingTitleEl.textContent = title || "Not available";
   meetingTitleEl.classList.toggle("is-muted", !title);
+
+  if (displayDate) {
+    meetingDateEl.textContent = displayDate;
+    meetingDateEl.hidden = false;
+  } else {
+    meetingDateEl.textContent = "";
+    meetingDateEl.hidden = true;
+  }
 }
 
 function isTranscriptViewOnPage() {
@@ -349,9 +387,16 @@ function extractMeetingMetadataOnPage() {
       .trim();
   }
 
-  const timeElement = document.querySelector("time[datetime]");
-  if (timeElement) {
-    metadata.date = timeElement.getAttribute("datetime") || timeElement.textContent?.trim() || "";
+  const videoDateElement = document.querySelector('[data-automationid="aboutVideoBasicInfoDate"]');
+  if (videoDateElement) {
+    metadata.date = videoDateElement.textContent?.replace(/\s+/g, " ").trim() || "";
+  }
+
+  if (!metadata.date) {
+    const timeElement = document.querySelector("time[datetime]");
+    if (timeElement) {
+      metadata.date = timeElement.getAttribute("datetime") || timeElement.textContent?.trim() || "";
+    }
   }
 
   if (!metadata.date) {
@@ -421,6 +466,8 @@ async function initializePopup() {
     showTranscriptPage();
     meetingTitleEl.textContent = "Loading...";
     meetingTitleEl.classList.remove("is-muted");
+    meetingDateEl.textContent = "";
+    meetingDateEl.hidden = true;
 
     const metadata = await fetchMeetingMetadata(tab.id);
     updateMeetingInfo(metadata);
@@ -854,7 +901,11 @@ async function runSendToApi() {
     await sendTranscriptToWebhook(webhookConfig, {
       format: "md",
       filename,
-      metadata,
+      metadata: {
+        title: metadata.title || "",
+        date: toApiDate(metadata.date),
+        duration: metadata.duration || "",
+      },
       entryCount: entries.length,
       content,
       category: {

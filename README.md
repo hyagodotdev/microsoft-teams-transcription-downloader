@@ -101,7 +101,7 @@ When you use **Send for API**, the extension sends a request with a JSON body li
   "filename": "Weekly Sync_2026-06-15.md",
   "metadata": {
     "title": "Weekly Sync",
-    "date": "2026-06-15T14:30:00.000Z",
+    "date": "2026-06-15",
     "duration": "45 min"
   },
   "entryCount": 128,
