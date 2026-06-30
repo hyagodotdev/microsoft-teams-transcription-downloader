@@ -111,6 +111,25 @@ h1 {
 .buttons {
   display: grid;
   gap: 10px;
+  margin-bottom: 14px;
+}
+
+.api-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #ddd6fe;
+  border-radius: 8px;
+  background: #faf5ff;
+}
+
+.api-section__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #6d28d9;
 }
 
 .menu-button {
@@ -176,6 +195,11 @@ h1 {
 
 .menu-button--configure {
   width: 100%;
+}
+
+.config-buttons {
+  display: grid;
+  gap: 8px;
   margin-top: 12px;
 }
 
@@ -277,6 +301,70 @@ h1 {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 4px;
+}
+
+.settings-form__actions--single {
+  grid-template-columns: 1fr;
+}
+
+.category-add-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.categories-list-wrap {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.categories-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.categories-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.categories-list__name {
+  font-size: 13px;
+  color: #1f2937;
+  word-break: break-word;
+}
+
+.categories-list__remove {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b91c1c;
+  background: #fee2e2;
+  cursor: pointer;
+}
+
+.categories-list__remove:hover {
+  background: #fecaca;
+}
+
+.categories-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
 }
 
 .settings-status {

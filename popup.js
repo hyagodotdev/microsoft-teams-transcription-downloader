@@ -11,6 +11,14 @@ const webhookUrlEl = document.getElementById("webhook-url");
 const webhookMethodEl = document.getElementById("webhook-method");
 const webhookHeadersEl = document.getElementById("webhook-headers");
 const btnSendApiEl = document.getElementById("btn-send-api");
+const categorySelectEl = document.getElementById("category-select");
+const categoriesModalEl = document.getElementById("categories-modal");
+const categoriesBackdropEl = document.getElementById("categories-backdrop");
+const categoryAddFormEl = document.getElementById("category-add-form");
+const categoryNameInputEl = document.getElementById("category-name-input");
+const categoriesListEl = document.getElementById("categories-list");
+const categoriesEmptyEl = document.getElementById("categories-empty");
+const categoriesStatusEl = document.getElementById("categories-status");
 
 const TRANSCRIPT_PAGE_MESSAGE =
   "Open this extension on the Teams meeting recording page with the transcript panel visible to collect and download it.";
@@ -23,6 +31,11 @@ function setStatus(message, isError = false) {
 function setSettingsStatus(message, isError = false) {
   settingsStatusEl.textContent = message;
   settingsStatusEl.classList.toggle("is-error", isError);
+}
+
+function setCategoriesStatus(message, isError = false) {
+  categoriesStatusEl.textContent = message;
+  categoriesStatusEl.classList.toggle("is-error", isError);
 }
 
 async function openSettingsModal() {
@@ -54,7 +67,16 @@ function wireSettingsUi() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && settingsModalEl.classList.contains("is-open")) {
+    if (event.key !== "Escape") {
+      return;
+    }
+
+    if (categoriesModalEl.classList.contains("is-open")) {
+      closeCategoriesModal();
+      return;
+    }
+
+    if (settingsModalEl.classList.contains("is-open")) {
       closeSettingsModal();
     }
   });
@@ -86,12 +108,124 @@ function wireSettingsUi() {
 
 async function updateApiButtonState() {
   const config = await getWebhookConfig();
-  const isConfigured = Boolean(config.url);
+  const categories = await getCategoriesConfig();
+  const hasApi = Boolean(config.url);
+  const hasCategory = Boolean(categories.selectedId);
 
-  btnSendApiEl.disabled = !isConfigured;
-  btnSendApiEl.title = isConfigured
-    ? "Send transcript to configured API"
-    : "Configure API settings to enable";
+  btnSendApiEl.disabled = !hasApi || !hasCategory;
+
+  if (!hasApi) {
+    btnSendApiEl.title = "Configure API settings to enable";
+  } else if (!hasCategory) {
+    btnSendApiEl.title = "Select a category to enable";
+  } else {
+    btnSendApiEl.title = "Send transcript to configured API";
+  }
+}
+
+async function populateCategorySelect() {
+  const config = await getCategoriesConfig();
+  const currentValue = config.selectedId || "";
+
+  categorySelectEl.innerHTML = '<option value="">Select a category...</option>';
+
+  for (const item of config.items) {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.name;
+    categorySelectEl.appendChild(option);
+  }
+
+  categorySelectEl.value = currentValue;
+}
+
+function renderCategoriesList(items) {
+  categoriesListEl.innerHTML = "";
+
+  for (const item of items) {
+    const listItem = document.createElement("li");
+    listItem.className = "categories-list__item";
+
+    const name = document.createElement("span");
+    name.className = "categories-list__name";
+    name.textContent = item.name;
+
+    const removeButton = document.createElement("button");
+    removeButton.type = "button";
+    removeButton.className = "categories-list__remove";
+    removeButton.textContent = "Remove";
+    removeButton.setAttribute("aria-label", `Remove category ${item.name}`);
+    removeButton.addEventListener("click", async () => {
+      try {
+        await removeCategory(item.id);
+        setCategoriesStatus(`"${item.name}" removed.`);
+        await refreshCategoriesUi();
+      } catch (error) {
+        setCategoriesStatus(error.message || "Could not remove category.", true);
+      }
+    });
+
+    listItem.append(name, removeButton);
+    categoriesListEl.appendChild(listItem);
+  }
+
+  const isEmpty = items.length === 0;
+  categoriesEmptyEl.hidden = !isEmpty;
+  categoriesListEl.hidden = isEmpty;
+}
+
+async function refreshCategoriesUi() {
+  const config = await getCategoriesConfig();
+  renderCategoriesList(config.items);
+  await populateCategorySelect();
+  await updateApiButtonState();
+}
+
+async function openCategoriesModal() {
+  const config = await getCategoriesConfig();
+  renderCategoriesList(config.items);
+  setCategoriesStatus("");
+  categoriesModalEl.classList.add("is-open");
+  categoryNameInputEl.focus();
+}
+
+function closeCategoriesModal() {
+  categoriesModalEl.classList.remove("is-open");
+  setCategoriesStatus("");
+}
+
+function wireCategoriesUi() {
+  document.getElementById("btn-categories").addEventListener("click", () => {
+    openCategoriesModal();
+  });
+
+  document.getElementById("btn-categories-close").addEventListener("click", () => {
+    closeCategoriesModal();
+  });
+
+  categoriesBackdropEl.addEventListener("click", () => {
+    closeCategoriesModal();
+  });
+
+  categoryAddFormEl.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    try {
+      const name = categoryNameInputEl.value;
+      await addCategory(name);
+      categoryNameInputEl.value = "";
+      setCategoriesStatus("Category added.");
+      await refreshCategoriesUi();
+      categoryNameInputEl.focus();
+    } catch (error) {
+      setCategoriesStatus(error.message || "Could not add category.", true);
+    }
+  });
+
+  categorySelectEl.addEventListener("change", async () => {
+    await setSelectedCategoryId(categorySelectEl.value || null);
+    await updateApiButtonState();
+  });
 }
 
 async function collectTranscriptFromActiveTab() {
@@ -290,6 +424,7 @@ async function initializePopup() {
 
     const metadata = await fetchMeetingMetadata(tab.id);
     updateMeetingInfo(metadata);
+    await populateCategorySelect();
     await updateApiButtonState();
   } catch {
     showInvalidPage(
@@ -690,6 +825,14 @@ async function runSendToApi() {
       return;
     }
 
+    const categoriesConfig = await getCategoriesConfig();
+    const selectedCategory = getCategoryById(categoriesConfig, categoriesConfig.selectedId);
+    if (!selectedCategory) {
+      setStatus("Select a category before sending.", true);
+      await updateApiButtonState();
+      return;
+    }
+
     const collected = await collectTranscriptFromActiveTab();
 
     if (collected.error === "no_transcript") {
@@ -714,6 +857,10 @@ async function runSendToApi() {
       metadata,
       entryCount: entries.length,
       content,
+      category: {
+        id: selectedCategory.id,
+        name: selectedCategory.name,
+      },
     });
 
     setStatus(`Transcript sent to API (${entries.length} entries).`);
@@ -735,5 +882,7 @@ document.getElementById("btn-send-api").addEventListener("click", () => {
 });
 
 wireSettingsUi();
+wireCategoriesUi();
 closeSettingsModal();
+closeCategoriesModal();
 initializePopup();

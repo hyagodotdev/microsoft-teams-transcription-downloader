@@ -66,10 +66,21 @@ API delivery is **not required**. Downloads work without any configuration.
    - **HTTP method** — `POST`, `PUT`, or `PATCH`
    - **Headers** — JSON object (e.g. authentication and `Content-Type`)
 3. Click **Save**.
-4. The **Send for API** button is enabled only after a URL is saved.
+4. The **Send for API** button is enabled only after a URL is saved and a category is selected.
 5. Click **Send for API** to collect the transcript and send it to your endpoint (Markdown format).
 
-Settings are stored locally in the browser (`chrome.storage.local`).
+Settings and categories are stored locally in the browser (`chrome.storage.local`).
+
+### 5. Manage categories (optional)
+
+Categories classify transcripts by topic when sending to the API.
+
+1. Click **Manage categories**.
+2. Add one or more category names (e.g. Product, Sales, Engineering).
+3. Click **Close**.
+4. On the popup home, choose a category from the **Category** dropdown before sending.
+
+At least one category must be selected to enable **Send for API**.
 
 #### Example headers
 
@@ -94,7 +105,11 @@ When you use **Send for API**, the extension sends a request with a JSON body li
     "duration": "45 min"
   },
   "entryCount": 128,
-  "content": "# Weekly Sync\n\n..."
+  "content": "# Weekly Sync\n\n...",
+  "category": {
+    "id": "cat_1719753600000_abc123",
+    "name": "Product"
+  }
 }
 ```
 
@@ -143,7 +158,7 @@ Consecutive lines from the same speaker are grouped into a single block to reduc
 | Warning about wrong page | Open the recording and make sure the transcript panel is visible before opening the popup |
 | No speech entries found | Scroll the transcript manually once, then try again |
 | Missing lines | Long meetings take longer; wait until the status message confirms completion |
-| Send for API disabled | Open **Configure API** and save a valid URL |
+| Send for API disabled | Open **Configure API** and save a valid URL, then select a category |
 | Webhook request failed | Check URL, method, headers, CORS, and server logs |
 | API settings not saved | Headers must be valid JSON with string values only |
 
@@ -153,7 +168,7 @@ Consecutive lines from the same speaker are grouped into a single block to reduc
 |------------|------------------|
 | `activeTab` | Access the current Teams tab when you open the popup or click an action |
 | `scripting` | Inject the transcript collection script into the page |
-| `storage` | Persist API settings locally |
+| `storage` | Persist API settings and categories locally |
 | `<all_urls>` | Send requests to user-configured API endpoints |
 
 The extension only runs on the tab you interact with. It does not run in the background on other sites.
@@ -167,6 +182,7 @@ microsoft-teams-transcription-downloader/
 ├── popup.css        # Popup styles
 ├── popup.js         # Transcript collection, download, and popup logic
 ├── settings.js      # API settings and webhook delivery
+├── categories.js    # Category list and selection persistence
 └── README.md
 ```
 

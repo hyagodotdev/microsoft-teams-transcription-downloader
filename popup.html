@@ -23,15 +23,32 @@
         <div class="buttons">
           <button id="btn-download-txt" class="menu-button">Download TXT</button>
           <button id="btn-download-md" class="menu-button menu-button--secondary">Download Markdown (AI)</button>
+        </div>
+
+        <section class="api-section" aria-label="Send to API">
+          <h2 class="api-section__title">Send to API</h2>
+
+          <label class="field">
+            <span class="field__label">Category</span>
+            <select id="category-select" class="field__input">
+              <option value="">Select a category...</option>
+            </select>
+          </label>
+
           <button id="btn-send-api" class="menu-button menu-button--api" type="button" disabled>
             Send for API
           </button>
-        </div>
+        </section>
       </div>
 
-      <button id="btn-settings" class="menu-button menu-button--ghost menu-button--configure" type="button">
-        Configure API
-      </button>
+      <div class="config-buttons">
+        <button id="btn-settings" class="menu-button menu-button--ghost menu-button--configure" type="button">
+          Configure API
+        </button>
+        <button id="btn-categories" class="menu-button menu-button--ghost menu-button--configure" type="button">
+          Manage categories
+        </button>
+      </div>
       <p id="status" class="status" aria-live="polite"></p>
     </main>
 
@@ -84,7 +101,50 @@
       </section>
     </div>
 
+    <div id="categories-modal" class="settings-modal">
+      <div id="categories-backdrop" class="settings-modal__backdrop"></div>
+      <section
+        class="settings-modal__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="categories-title"
+      >
+        <h2 id="categories-title" class="settings-modal__title">Manage categories</h2>
+        <p class="settings-modal__hint">
+          Define topics to classify transcripts when sending to the API. At least one category is required to
+          enable Send for API.
+        </p>
+
+        <form id="category-add-form" class="category-add-form">
+          <label class="field">
+            <span class="field__label">New category</span>
+            <input
+              id="category-name-input"
+              class="field__input"
+              type="text"
+              placeholder="e.g. Product, Sales, Engineering"
+              maxlength="80"
+            />
+          </label>
+          <button id="btn-category-add" class="menu-button" type="submit">Add</button>
+        </form>
+
+        <div class="categories-list-wrap">
+          <span class="field__label">Categories</span>
+          <ul id="categories-list" class="categories-list" aria-label="Saved categories"></ul>
+          <p id="categories-empty" class="categories-empty" hidden>No categories yet. Add one above.</p>
+        </div>
+
+        <div class="settings-form__actions settings-form__actions--single">
+          <button id="btn-categories-close" class="menu-button menu-button--ghost" type="button">Close</button>
+        </div>
+
+        <p id="categories-status" class="settings-status" aria-live="polite"></p>
+      </section>
+    </div>
+
     <script src="settings.js"></script>
+    <script src="categories.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>
